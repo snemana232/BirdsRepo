@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[57]:
 
 
 import matplotlib.image as mpimg
@@ -10,71 +10,25 @@ import numpy as np
 import skimage
 from skimage import io
 import sys
-sys.setrecursionlimit(2000000)
+import random
+sys.setrecursionlimit(10000000)
 
 
-# In[2]:
+# In[59]:
 
-
-'''
-!pip install -U -q PyDrive
-import os
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
-from google.colab import auth
-from oauth2client.client import GoogleCredentials
-
-# 1. Authenticate and create the PyDrive client.
-auth.authenticate_user()
-gauth = GoogleAuth()
-gauth.credentials = GoogleCredentials.get_application_default()
-drive = GoogleDrive(gauth)
-
-# choose a local (colab) directory to store the data.
-local_download_path = os.path.expanduser('~/birds_data')
-try:
-  os.makedirs(local_download_path)
-except: pass
-
-# 2. Auto-iterate using the query syntax
-#    https://developers.google.com/drive/v2/web/search-parameters
-file_list = drive.ListFile(
-    {'q': "'1-kILh7-OMeCYny7rlycroie7scKvmDQ-' in parents"}).GetList()
-
-for f in file_list:
-  # 3. Create & download by id.
-  # print('title: %s, id: %s' % (f['title'], f['id']))
-  # fname = os.path.join(local_download_path, f['title'])
-  # print('downloading to {}'.format(fname))
-  # f_ = drive.CreateFile({'id': f['id']})
-  # f_.GetContentFile(fname)
-  if f['title'] == '20180620_BISC_BirdFlight_SOKE_0362_copy.jpg':
-    print('title: %s, id: %s' % (f['title'], f['id']))
-    fname = os.path.join(local_download_path, f['title'])
-    print('downloading to {}'.format(fname))
-    f_ = drive.CreateFile({'id': f['id']})
-    f_.GetContentFile(fname)
-'''
-
-
-# In[3]:
-
-
-#pathnames = glob.glob('/root/birds_data/20180620_BISC_BirdFlight_SOKE_0362_copy.jpg', recursive=True)
-#print(pathnames)
-#img = mpimg.imread(pathnames[0]) #The processed image
+# renamed version of below image
 img = io.imread('image1.jpg')
-plt.imshow(img)
+
+calls_counter = 0
 
 
-# In[4]:
+# In[60]:
 
 
 #arr = skimage.io.imread('20180620_BISC_BirdFlight_SOKE_0362_copy.jpg') In case we need more speed? Messy to work with 3D array though
 
 
-# In[5]:
-
+# In[61]:
 
 # circleColors = [red, crimson, maroon, blue, cyan, magenta, yellow, purple, pink]
 # yellow range = (200-255, 200-255, 0-50)
@@ -106,13 +60,7 @@ def isMuxoColor(triple):
     return False
 
 
-# In[6]:
-
-
-row1 = img[0]
-
-
-# In[7]:
+# In[63]:
 
 
 # THIS APPROACH DOES NOT WORK (it finds a global xmin and xmax, ymin and ymax
@@ -134,123 +82,337 @@ for color in color_list:
   [xmin,ymin] = np.amin(array_of_locations_of_color, axis=0)
 '''
 
+# Produces image to check whether color functions are properly defined
+'''
+only_cyan = np.zeros(img.shape, dtype=np.uint8)
+for i,row in enumerate(img):
+    for j,px in enumerate(row):
+        if isCyan(px):
+            only_cyan[i,j] = px
+        else:
+            continue
 
-# In[8]:
+io.imsave('onlyCyan.png', only_cyan)
+exit()
+'''
 
+# In[64]:
 
-boundingCoordinates = [] #[[rmin, rmax], [cmin, cmax]], [[rmin, rmax], [cmin, cmax]]
-                            #Circle 1                      #Circle 2
+# a list of dicts
+# each dict has keys: rmin, rmax, cmin, cmax
+# each dict gives the coordinates for a bounding box around a hand-drawn circle
 
+boundingCoordinates = [] 
+
+# crop the image
+# crop of just cyan circle
 img = img[325 : 637, 1257 : 1601]
-visited_map = np.zeros(img.shape[:2], dtype=bool)
-curr_bounds = [[len(img) + 1, -1],[len(img[0]) + 1, -1]]
-#new_visited_map = np.zeroes(img.shape)
-'''
-print(img.shape)
-print(len(img) + 1)
-print(-1)
-print(len(img[0]) + 1)
-print(-1)
-'''
+# experimental crop
+# img = img[325 : 637, 1440 : 1601]
+
+
+# finds all hand-drawn closed curves that are drawn in valid Muxo colors
+# adds a bounding box dict to boundingCoordinates for each hand-drawn circle
 def find_circles(img):
     numCircles = 0
     first = False
     for i, row in enumerate(img):
         for j, triple in enumerate(row):
-            color_func = isMuxoColor(triple)
             #is Muxo color returns a function
+            color_func = isMuxoColor(triple)
+            
+            # functions are truthy in Python
             if (color_func):
-                visited_map = np.zeros(img.shape, dtype=bool) # makes this an array of all False
-                #new_visited_map = np.zeroes(img.shape)
-                curr_bounds = [[len(img) + 1, -1],[len(img[0]) + 1, -1]] # will become [[rmin,rmax],[cmin,cmax]]
-                # boundingCoordinates.append(curr_bounds)
+                visited_map = np.zeros(img.shape[:2], dtype=bool) # makes this an array of all False
+                curr_bounds = {'rmin': len(img) + 1,
+                               'rmax': -1,
+                               'cmin': len(img[0]) + 1,
+                               'cmax': -1
+                              }
                 print("starting coordinates: " + str(i) + ", " + str(j))
-                #new_visited_map[i][j] = [255, 255, 255]
-                boundingCoordinates.append(find_coordinates(img, i, j, color_func))
-                rmin = boundingCoordinates[-1][0][0]
-                rmax = boundingCoordinates[-1][0][1]
-                cmin = boundingCoordinates[-1][1][0]
-                cmax = boundingCoordinates[-1][1][1]
+
+                visited_map, curr_bounds = find_coordinates_breadth_first(img, i, j, color_func, visited_map, curr_bounds)
+                
+                boundingCoordinates.append(curr_bounds)
+                
+                # black out this bounding box in the image
+                rmin = boundingCoordinates[-1]["rmin"]
+                rmax = boundingCoordinates[-1]["rmax"]
+                cmin = boundingCoordinates[-1]["cmin"]
+                cmax = boundingCoordinates[-1]["cmax"]
                 img[rmin : rmax, cmin: cmax] = [0, 0, 0]
-                #to account for handwriting, filter out bounding boxes where 
-                #(ymin-ymax) is very different from (xmin-xmax)
+                '''
+                TODO: to account for handwriting, filter out bounding boxes where 
+                (ymin-ymax) is very different from (xmin-xmax)
+                '''
+                
+                
                 first = True
             if (first):
                 break
         if(first):
             break
+            
+    return visited_map, curr_bounds
         
+    
         
+# helper function for find_coordinates()
+# returns True if all 8 neighbors of a pixel are visited; False otherwise
+def surrounded_by_visited(visited_map, row_id, col_id):
+    return visited_map[row_id-1][col_id] and\
+            visited_map[row_id][col_id-1] and\
+            visited_map[row_id+1][col_id] and\
+            visited_map[row_id][col_id+1] and\
+            visited_map[row_id+1][col_id+1] and\
+            visited_map[row_id-1][col_id-1] and\
+            visited_map[row_id-1][col_id+1] and\
+            visited_map[row_id+1][col_id-1]
 
+# helper function for find_coordinates_breadth_first()
+# returns list of (row, col) pairs that are neighbors of input location and not yet visited
+def get_unvisited_neighbors(visited_map, row_id, col_id):
+    unvisited_neighbors = []
+    
+    if not visited_map[row_id+1][col_id]:
+        unvisited_neighbors.append((row_id+1, col_id))
+    
+    if not visited_map[row_id-1][col_id]:
+        unvisited_neighbors.append((row_id-1, col_id))
         
+    if not visited_map[row_id][col_id+1]:
+        unvisited_neighbors.append((row_id, col_id+1))
+        
+    if not visited_map[row_id][col_id-1]:
+        unvisited_neighbors.append((row_id, col_id-1))
+        
+    if not visited_map[row_id+1][col_id+1]:
+        unvisited_neighbors.append((row_id+1, col_id+1))
+        
+    if not visited_map[row_id-1][col_id+1]:
+        unvisited_neighbors.append((row_id-1, col_id+1))
+    
+    if not visited_map[row_id+1][col_id-1]:
+        unvisited_neighbors.append((row_id+1, col_id-1))
+        
+    if not visited_map[row_id-1][col_id-1]:
+        unvisited_neighbors.append((row_id-1, col_id-1))
+        
+    return unvisited_neighbors
+
+# modified bfs / dfs when locations_queue is made into a stack (add happens at the front)
+def find_coordinates_breadth_first(img, row_id, col_id, color_func, visited_map, curr_bounds):
+#     print('row is', row_id)
+#     print('col is', col_id)
+    global calls_counter
+    
+    found_bottom_point = False
+    
+    visited_map[row_id][col_id] = True
+    
+    # list of (row_id, col_id) pairs, in order of location to visit
+    locations_queue = []
+    secondary_queue = []
+    
+    # lst.extend(arg) appends all elements of arg (arg is a list)
+    '''
+    for BSF:
+    
+    locations_queue.extend(get_unvisited_neighbors(visited_map, row_id, col_id))
+    '''
+    # for DFS
+    temp = get_unvisited_neighbors(visited_map, row_id, col_id)
+    temp.extend(locations_queue)
+    locations_queue = temp
+    
+    print(locations_queue)
+   
+        
+    # empty lists are falsy in Python
+    while (locations_queue or secondary_queue):
+        if locations_queue:
+            calls_counter = calls_counter + 1
+            if (calls_counter % 200) == 0:
+                    io.imsave('visited.jpg', 255 * visited_map)
+
+            # locations_queue has at least one element
+            first_loc = locations_queue.pop(0)
+    #         print(calls_counter)
+    
+            print('first loc is', first_loc)
+            visited_map[first_loc[0], first_loc[1]] = True
+
+            if not color_func(img[first_loc[0]][first_loc[1]]):
+                continue
+
+            # DOES NOT actually indicate search is over 
+            # (this was a flaw in previous logic - there are lots of ways to end up cornered)
+            '''
+            if surrounded_by_visited(visited_map, first_loc[0], first_loc[1]):
+                print("surrounded by visited - ending search")
+                return visited_map, curr_bounds
+            '''
+            # need to reach bottom of the curve (we're starting at the top)
+            if not found_bottom_point:
+                if first_loc[0] - row_id > 50 and col_id == first_loc[1]:
+                    print('made it to the bottom')
+                    found_bottom_point = True
+           
+            # done if bottom found and have no more unvisited neighbors
+            if found_bottom_point and (not secondary_queue):
+                print('made it all the way around - ending search')
+                return visited_map, curr_bounds
+
+            elif first_loc[0] < curr_bounds["rmin"]:
+                curr_bounds["rmin"] = first_loc[0]
+
+                # far from initial side of figure (we always start at the top --> around rmin), allow backtracking
+                if (first_loc[0] - curr_bounds['rmin']) < 20:
+                    print("Owie 1")
+                    visited_map[first_loc[0]+1][first_loc[1]] = True
+    #             visited_map[first_loc[0]+1][first_loc[1]+1] = True
+    #             visited_map[first_loc[0]+1][first_loc[1]-1] = True
+    #             visited_map[first_loc[0]][first_loc[1]+1] = True
+    #             visited_map[first_loc[0]][first_loc[1]-1] = True
+
+            elif first_loc[0] > curr_bounds["rmax"]:
+                curr_bounds["rmax"] = first_loc[0]
+
+                if (first_loc[0] - curr_bounds['rmin']) < 20: 
+                    print("Owie 2")
+                    visited_map[first_loc[0]-1][first_loc[1]] = True
+    #             visited_map[first_loc[0]-1][first_loc[1]+1] = True
+    #             visited_map[first_loc[0]-1][first_loc[1]-1] = True
+    #             visited_map[first_loc[0]][first_loc[1]+1] = True
+    #             visited_map[first_loc[0]][first_loc[1]-1] = True
+            elif first_loc[1] < curr_bounds["cmin"]:
+                curr_bounds["cmin"] = first_loc[1]
+
+                # far from initial side of figure (we always start at the top --> around rmin), allow backtracking
+                if (first_loc[0] - curr_bounds['rmin']) < 20:
+                    print("Owie 3")
+                    visited_map[first_loc[0]][first_loc[1]+1] = True
+    #             visited_map[first_loc[0]+1][first_loc[1]+1] = True
+    #             visited_map[first_loc[0]-1][first_loc[1]+1] = True
+    #             visited_map[first_loc[0]+1][first_loc[1]] = True
+    #             visited_map[first_loc[0]-1][first_loc[1]] = True
+            elif first_loc[1] > curr_bounds["cmax"]:
+                curr_bounds["cmax"] = first_loc[1]
+
+                # far from initial side of figure (we always start at the top --> around rmin), allow backtracking
+                if (first_loc[0] - curr_bounds['rmin']) < 20:
+                    print("Owie 4")
+                    visited_map[first_loc[0]][first_loc[1]-1] = True
+    #             visited_map[first_loc[0]+1][first_loc[1]-1] = True
+    #             visited_map[first_loc[0]-1][first_loc[1]-1] = True
+    #             visited_map[first_loc[0]+1][first_loc[1]] = True
+    #             visited_map[first_loc[0]-1][first_loc[1]] = True
+            else:
+                # this location does not get closer to the goal
+                secondary_queue.extend(get_unvisited_neighbors(visited_map, first_loc[0], first_loc[1]))
+#                 random.shuffle(secondary_queue)
+                continue
+
+    #         print("YOOOOOOO!")
+
+            locations_queue.extend(get_unvisited_neighbors(visited_map, first_loc[0], first_loc[1]))
+    #         print(locations_queue)
+        else:
+            print('first loc is ', first_loc)
+            
+            esc_location = secondary_queue.pop(len(secondary_queue)-1)
+            
+            
+#             esc_location = secondary_queue.pop(0)
+            
+            print('now going to ', esc_location)
+            locations_queue.append(esc_location)
+#             pass
+    # after the while loop
+    print("outside the while loop")
+    return visited_map, curr_bounds
+    
 #the [row, column] rgb triple we have flagged as part of a circle
 
 # walks along contiguous segment of image with given color
 # returns [[rmin,rmax],[cmin,cmax]] for that segment -> will be used to
 # give coordinates of the bounding box later
-def find_coordinates(img, row_id, col_id, color_func):
+# amounts to modified dfs
+def find_coordinates(img, row_id, col_id, color_func, visited_map, curr_bounds):
+    global calls_counter
+    calls_counter = calls_counter + 1
+    
     visited_map[row_id][col_id] = True
-    if visited_map[row_id-1][col_id] and visited_map[row_id][col_id-1] and visited_map[row_id+1][col_id] and visited_map[row_id][col_id+1] and visited_map[row_id+1][col_id+1] and visited_map[row_id-1][col_id-1] and visited_map[row_id-1][col_id+1] and visited_map[row_id+1][col_id-1]:
-        # print("first")
-        return curr_bounds 
-    if not color_func(img[row_id][col_id]): # out of circle
-        # print("second")
-        return curr_bounds
-    #new_visited_map[row_id][col_id] = [255, 255, 255]
+    
+    if surrounded_by_visited(visited_map, row_id, col_id):
+        return visited_map, curr_bounds 
+    if not color_func(img[row_id][col_id]):
+        # no longer in region of same color
+        return visited_map, curr_bounds
     
     # need to change to <= and >= instead of < and >
-    if row_id < curr_bounds[0][0]:
-        curr_bounds[0][0] = row_id
-        # call on rmin, cmin, cmax
-        find_coordinates(img, row_id - 1, col_id, color_func)
-        find_coordinates(img, row_id, col_id + 1, color_func)
-        find_coordinates(img, row_id, col_id - 1, color_func)
-    elif row_id > curr_bounds[0][1]:
-        curr_bounds[0][1] = row_id
-        # call on rmax, cmin, cmax
-        find_coordinates(img, row_id + 1, col_id, color_func)
-        find_coordinates(img, row_id, col_id + 1, color_func)
-        find_coordinates(img, row_id, col_id - 1, color_func)
-    elif col_id < curr_bounds[1][0]:
-        curr_bounds[1][0] = col_id
-        # call on rmin, rmax, cmin
-        find_coordinates(img, row_id, col_id - 1, color_func)
-        find_coordinates(img, row_id - 1, col_id, color_func)
-        find_coordinates(img, row_id + 1, col_id, color_func)
-    elif col_id > curr_bounds[1][1]:
-        curr_bounds[1][1] = col_id
+    if row_id < curr_bounds["rmin"]:
+        if (calls_counter % 200) == 0:
+            io.imsave('visited.jpg', 255 * visited_map)
+        
+        curr_bounds["rmin"] = row_id
+        # call on smaller row, larger and smaller cols
+        visited_map, curr_bounds = find_coordinates(img, row_id - 1, col_id, color_func, visited_map, curr_bounds)
+        visited_map, curr_bounds = find_coordinates(img, row_id, col_id + 1, color_func, visited_map, curr_bounds)
+        visited_map, curr_bounds = find_coordinates(img, row_id, col_id - 1, color_func, visited_map, curr_bounds)
+    elif row_id > curr_bounds["rmax"]:
+        
+        if (calls_counter % 200) == 0:
+            io.imsave('visited.jpg', 255 * visited_map)
+        
+        curr_bounds["rmax"] = row_id
+        # call on larger row, larger and smaller cols
+        visited_map, curr_bounds = find_coordinates(img, row_id + 1, col_id, color_func, visited_map, curr_bounds)
+        visited_map, curr_bounds = find_coordinates(img, row_id, col_id + 1, color_func, visited_map, curr_bounds)
+        visited_map, curr_bounds = find_coordinates(img, row_id, col_id - 1, color_func, visited_map, curr_bounds)
+    
+    # else:
+       # return visited_map, curr_bounds
+
+    
+    elif col_id < curr_bounds["cmin"]:
+        
+        if (calls_counter % 200) == 0:
+            io.imsave('visited.jpg', 255 * visited_map)
+            
+        curr_bounds["cmin"] = col_id
+        # call smaller col, larger and smaller rows
+        visited_map, curr_bounds = find_coordinates(img, row_id, col_id - 1, color_func, visited_map, curr_bounds)
+        visited_map, curr_bounds = find_coordinates(img, row_id - 1, col_id, color_func, visited_map, curr_bounds)
+        visited_map, curr_bounds = find_coordinates(img, row_id + 1, col_id, color_func, visited_map, curr_bounds)
+    elif col_id > curr_bounds["cmax"]:
+        
+        if (calls_counter % 200) == 0:
+            io.imsave('visited.jpg', 255 * visited_map)
+        
+        curr_bounds["cmax"] = col_id
         # call on rmin, rmax, cmax
-        find_coordinates(img, row_id, col_id + 1, color_func)
-        find_coordinates(img, row_id - 1, col_id, color_func)
-        find_coordinates(img, row_id + 1, col_id, color_func)
+        visited_map, curr_bounds = find_coordinates(img, row_id, col_id + 1, color_func, visited_map, curr_bounds)
+        visited_map, curr_bounds = find_coordinates(img, row_id - 1, col_id, color_func, visited_map, curr_bounds)
+        visited_map, curr_bounds = find_coordinates(img, row_id + 1, col_id, color_func, visited_map, curr_bounds)
     else:
-        return curr_bounds
-    # call on diagonals
-    find_coordinates(img, row_id - 1, col_id - 1, color_func)
-    find_coordinates(img, row_id + 1, col_id + 1, color_func)
-    find_coordinates(img, row_id - 1, col_id + 1, color_func)
-    find_coordinates(img, row_id + 1, col_id - 1, color_func)
+        return visited_map, curr_bounds
+    
+    # call on diagonals in all cases
+    
+    visited_map, curr_bounds = find_coordinates(img, row_id - 1, col_id - 1, color_func, visited_map, curr_bounds)
+    visited_map, curr_bounds = find_coordinates(img, row_id + 1, col_id + 1, color_func, visited_map, curr_bounds)  
+    visited_map, curr_bounds = find_coordinates(img, row_id - 1, col_id + 1, color_func, visited_map, curr_bounds)
+    visited_map, curr_bounds = find_coordinates(img, row_id + 1, col_id - 1, color_func, visited_map, curr_bounds)
+    
+    
     # print(curr_bounds)
-    '''
-    if (row < boundingCoordinates[i][0][0]): #currx < (xmin, y)
-    boundingCoordinates[i][0] = [row, col]
-    if (row > boundingCoordinates[i][1][0]): #currx > (xmax, y)
-    boundingCoordinates[i][1] = [row, col]
-    if (col < boundingCoordinates[i][2][1]): #curry < (x, ymin)
-    boundingCoordinates[i][2] = [row, col]
-    if (col > boundingCoordinates[i][3][1]): #curry > (x, ymax)
-    boundingCoordinates[i][3] = [row, col]
-    '''
-    # print("third")
-    return curr_bounds
+    print("third")
+    return visited_map, curr_bounds
+    
   
 
-
-# In[9]:
-
-
 #Overlay rectangles defined by coordinates onto copy of original image
-
 
 # Another approach: https://www.codingame.com/playgrounds/38470/how-to-detect-circles-in-images
 # 
@@ -264,49 +426,43 @@ def find_coordinates(img, row_id, col_id, color_func):
 # 
 # 
 
-# In[10]:
+# In[66]:
 
 
-find_circles(img)
+vis_map, c_bounds = find_circles(img)
+'''
+crop given by:
+img = img[325 : 637, 1257 : 1601]
+'''
+c_bounds['rmin'] = c_bounds['rmin'] + 325
+c_bounds['rmax'] = c_bounds['rmax'] + 325
+c_bounds['cmin'] = c_bounds['cmin'] + 1257
+c_bounds['cmax'] = c_bounds['cmax'] + 1257
+print(c_bounds)
 
 
-# Our function is tail-recursive, so this should work:
-# https://stackoverflow.com/questions/13591970/does-python-optimize-tail-recursion
-# 
-# (we just need to make it a while loop)
-# 
-# And this might end up being important (passing a list to simultaneous recursive calls): https://docs.python.org/3/library/copy.html
-
-# In[11]:
+# In[67]:
 
 
-print(boundingCoordinates)
+# print(boundingCoordinates)
 
 
 # open CV function: identify colors in an image by specifying their rgb boundaries
 # https://www.pyimagesearch.com/2014/08/04/opencv-python-color-detection/
 # 
 
-# In[12]:
+# In[68]:
 
 
-print(visited_map)
+# print(visited_map)
 
+# 255 factor used to make visited map visible
+io.imsave('visited.jpg', 255 * vis_map)
+io.imsave('blackout-img.png', img)
 
-# In[13]:
-
-
-plt.imshow(img)
-
-
-# In[14]:
-
-
-plt.imshow(visited_map)
-
+# In[69]:
+# plt.imshow(img)
+# In[70]:
+# plt.imshow(visited_map)
 
 # In[ ]:
-
-
-
-
