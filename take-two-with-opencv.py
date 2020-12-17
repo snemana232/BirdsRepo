@@ -22,7 +22,7 @@ colors_dict = {
 }
 
 # img = io.imread('image1.jpg')
-img = io.imread('sample-photos/20190724_BirdFlight_RAKE_0213_copy.jpg')
+img = io.imread('sample-photos/20190724_BirdFlight_SOKE_0329_copy.jpg')
 
 # io.imshow(img)
 # plt.show()
@@ -81,7 +81,7 @@ for color_name, color in colors_dict.items():
     contiguous Muxo color
     Condition removal on the area of each connected component
     '''
-    MIN_AREA = 250
+    MIN_AREA = 2000
 
     num_circles = 0
 
@@ -93,9 +93,9 @@ for color_name, color in colors_dict.items():
             # ignore components that are too small to be nest circles
             continue
         else:
+            print("Coords for circle", num_circles, "are:")
             num_circles = num_circles + 1
 
-            print("Coords for circle", i, "are:")
             top = stats[i,cv2.CC_STAT_TOP]
             left = stats[i,cv2.CC_STAT_LEFT]
             bottom = top + stats[i, cv2.CC_STAT_HEIGHT] - 1
@@ -104,6 +104,8 @@ for color_name, color in colors_dict.items():
             print("Left:", left)
             print("Bottom:", bottom)
             print("Right:", right)
+
+            print("(This is connected component number", i,")")
 
             # Draw bounding boxes on original image
             img[top,left:right] = [0,0,0]
