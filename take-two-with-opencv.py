@@ -18,9 +18,11 @@ colors_dict = {
     'cyan': [(0,130),(150,255),(150,255)],
     'pink': [(200,255),(0,60),(200,255)],
     'blue': [(0,60),(0,100),(200,255)],
+    'plum-violet': [(120,170),(50,100),(120,170)],
 }
 
-img = io.imread('image1.jpg')
+# img = io.imread('image1.jpg')
+img = io.imread('sample-photos/20190724_BirdFlight_RAKE_0213_copy.jpg')
 
 # io.imshow(img)
 # plt.show()
@@ -44,7 +46,7 @@ for color_name, color in colors_dict.items():
     # whether_color is a single-channel image with the same 2d shape as img
     # each pixel is 1 if the corresponding pixel in img is the current MuxoColor
     # otherwise, a pixel in whether_color is 0
-    whether_color = np.zeros(img.shape[0:2])
+    whether_color = np.empty(img.shape[0:2])
     whether_color[mask] = True
     whether_color[np.invert(mask)] = False
 
@@ -74,11 +76,43 @@ for color_name, color in colors_dict.items():
     # io.imshow(labels)
     # plt.show()
 
-    # segment 0 is the background
-    num_circles = retval - 1
-    print("There are", num_circles, "circles with color", color_name)
+    '''
+    Eliminate "circles" that are just flowers or other small regions of
+    contiguous Muxo color
+    Condition removal on the area of each connected component
+    '''
+    MIN_AREA = 250
+
+    num_circles = 0
 
     for i in range(retval):
-        print(stats[i,cv2.CC_STAT_TOP], stats[i,cv2.CC_STAT_LEFT])
+        if i == 0:
+            # skip over the background
+            continue
+        elif stats[i, cv2.CC_STAT_AREA] < MIN_AREA:
+            # ignore components that are too small to be nest circles
+            continue
+        else:
+            num_circles = num_circles + 1
 
+            print("Coords for circle", i, "are:")
+            top = stats[i,cv2.CC_STAT_TOP]
+            left = stats[i,cv2.CC_STAT_LEFT]
+            bottom = top + stats[i, cv2.CC_STAT_HEIGHT] - 1
+            right = left + stats[i, cv2.CC_STAT_WIDTH] - 1
+            print("Top:", top)
+            print("Left:", left)
+            print("Bottom:", bottom)
+            print("Right:", right)
+
+            # Draw bounding boxes on original image
+            img[top,left:right] = [0,0,0]
+            img[bottom,left:right] = [0,0,0]
+            img[top:bottom,left] = [0,0,0]
+            img[top:bottom,right] = [0,0,0]
+
+    if i == (retval-1):
+        print("There are", num_circles, "circles with Muxo color", color_name)
+        io.imshow(img)
+        plt.show()    
 
