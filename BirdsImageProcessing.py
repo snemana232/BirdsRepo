@@ -149,11 +149,17 @@ def find_circles(img):
                 
                 first = True
             if (first):
+<<<<<<< HEAD
 #                 break
                 pass
         if(first):
 #             break
             pass
+=======
+                break
+        if(first):
+            break
+>>>>>>> 1e7c04db0412900a9ca3f6cd589eaa1f01e75239
             
     return visited_map, curr_bounds
         
