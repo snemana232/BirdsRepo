@@ -1,3 +1,7 @@
+# tf stuff
+birds-dataset/logs/*
+birds-dataset/models/*
+
 # venv stuff
 birds-venv/*
 
