@@ -1,6 +1,9 @@
 yolov3.weights
 # Download weights here: https://pjreddie.com/media/files/yolov3.weights
 
+pretrained-yolov3.h5
+# Downloaded from ImageAI site: https://github.com/OlafenwaMoses/ImageAI/releases/tag/essential-v4
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
