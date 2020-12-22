@@ -1,0 +1,7 @@
+Notes on what to do moving forward:
+
+- make sure venv has tf gpu (training was kinda slow)
+
+- double check xml file formatting - give the model definitely-bad xml and make sure it fails
+
+- reminder that the name of the venv is birds-venv

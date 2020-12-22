@@ -1,3 +1,6 @@
+# venv stuff
+birds-venv/*
+
 yolov3.weights
 # Download weights here: https://pjreddie.com/media/files/yolov3.weights
 
