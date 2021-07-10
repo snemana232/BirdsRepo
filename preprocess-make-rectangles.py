@@ -186,16 +186,22 @@ def generate_annotations(path, image_dims, bounding_box_list):
     with open("birds-dataset/train/annotations/" + annotation_filename, "wb") as files: 
         tree.write(files)
 
-if __name__ == "__main__":  
-    # img = io.imread('image1.jpg')
-    # img = io.imread('sample-photos/20190724_BirdFlight_SOKE_0329_copy.jpg')
-    image_paths = glob.glob("birds-dataset/train/images/*")
+if __name__ == "__main__":
+
+    pathname = "/Users/charlie/Desktop/VSFS - Bird Photos/20201022_BISC_BirdFlight/**/*.jpg"
+    # .iglob() returns iterator without storing all images at once
+    image_paths = glob.glob(pathname, recursive=True)
+
+    print("Found %s image paths" % len(image_paths))
 
     for path in image_paths:
+        print("\n\nNow analyzing ", path)
         img = io.imread(path)
         bounding_box_list = get_bounding_boxes(img, path)
-        generate_annotations(path, img.shape, bounding_box_list)
-        # io.imshow(img)
-        # plt.show()
+        # generate_annotations(path, img.shape, bounding_box_list)
+        print("showing image:")
+        io.imshow(img)
+        print("showing plot:")
+        plt.show()
 
 
