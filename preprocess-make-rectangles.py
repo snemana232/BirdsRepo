@@ -186,22 +186,76 @@ def generate_annotations(path, image_dims, bounding_box_list):
     with open("birds-dataset/train/annotations/" + annotation_filename, "wb") as files: 
         tree.write(files)
 
+# class used to convert a bounding box in absolute coords to a bounding box in normalized coords
+class NormedBox:
+    def __init__(self, img_width, img_height, absolute_box):
+    # from https://docs.microsoft.com/en-us/azure/cognitive-services/custom-vision-service/quickstarts/object-detection?tabs=visual-studio&pivots=programming-language-python
+        # When you tag images in object detection projects, you need to specify the region 
+        # of each tagged object using normalized coordinates. The following code associates
+        # each of the sample images with its tagged region. The regions specify the bounding 
+        # box in normalized coordinates, 
+        # and the coordinates are given in the order: left, top, width, height.
+        self.left = absolute_box['xmin'] / img_width
+        self.top = absolute_box['ymin'] / img_height
+        self.width = (absolute_box['xmax'] - absolute_box['xmin']) / img_width
+        self.height = (absolute_box['ymax'] - absolute_box['ymin']) / img_height
+
+# class used to create annotations in the format required by Azure computer vision system
+class NormAnnotationSet:
+    # outputs a NormAnnotationSet object for the input image
+    def __init__(self, path, image_dims, bounding_box_list):
+        self.path = path
+        self.image_dims = image_dims
+        self.bounding_box_list = bounding_box_list
+        # number of columns
+        self.img_width = image_dims[1]
+        # number of rows
+        self.img_height = image_dims[0]
+
+        self.normed_boxes_list = []
+        for box in bounding_box_list:
+            curr_normed_box = NormedBox(self.img_width, self.img_height, box)
+            self.normed_boxes_list.append(curr_normed_box)
+
+    def pretty_print(self):
+        print("Path:", self.path)
+        for i, box in enumerate(self.normed_boxes_list):
+            print("Normalized coords for box", i, " of this image")
+            print("Left:", box.left)
+            print("Top:", box.top)
+            print("Width:", box.width)
+            print("Height:", box.height)
+            print("\n")
+
 if __name__ == "__main__":
 
-    pathname = "/Users/charlie/Desktop/VSFS - Bird Photos/20201022_BISC_BirdFlight/**/*.jpg"
+    pathname = "../20201022_BISC_BirdFlight/**/*.jpg"
+    
     # .iglob() returns iterator without storing all images at once
-    image_paths = glob.glob(pathname, recursive=True)
+    image_paths = glob.iglob(pathname, recursive=True)
 
-    print("Found %s image paths" % len(image_paths))
+    # change .iglob() to .glob() for this to work
+    # print("Found %s image paths" % len(image_paths))
+    # print(image_paths)
+
+    annotations = []
 
     for path in image_paths:
         print("\n\nNow analyzing ", path)
         img = io.imread(path)
         bounding_box_list = get_bounding_boxes(img, path)
-        # generate_annotations(path, img.shape, bounding_box_list)
-        print("showing image:")
-        io.imshow(img)
-        print("showing plot:")
-        plt.show()
+
+        print(bounding_box_list)
+
+        # curr_annotation = generate_annotations(path, img.shape, bounding_box_list)
+        curr_annotation = NormAnnotationSet(path, img.shape, bounding_box_list)
+        annotations.append(curr_annotation)
+        print("printing normed annotation")
+        curr_annotation.pretty_print()
+
+        # print("showing image:")
+        # io.imshow(img)
+        # print("showing plot:")
+        # plt.show()
 
 
