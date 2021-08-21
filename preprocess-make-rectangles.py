@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
     upload_result = trainer.create_images_from_files(project.id, ImageFileCreateBatch(images=tagged_images_with_regions))
     if not upload_result.is_batch_successful:
-    print("Image batch upload failed.")
+        print("Image batch upload failed.")
     for image in upload_result.images:
         print("Image status: ", image.status)
     exit(-1)
