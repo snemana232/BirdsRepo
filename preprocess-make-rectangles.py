@@ -114,9 +114,10 @@ def get_bounding_boxes(img, path):
                     {'xmin': left,
                     'ymin': top,
                     'xmax': right,
-                    'ymax': bottom})
+                    'ymax': bottom,
+                    'colorname': color_name})
 
-                # Draw bounding boxes on original image
+                # Draw bounding boxes on original image (black rectangle)
                 img[top,left:right] = [0,0,0]
                 img[bottom,left:right] = [0,0,0]
                 img[top:bottom,left] = [0,0,0]
@@ -199,6 +200,7 @@ class NormedBox:
         self.top = absolute_box['ymin'] / img_height
         self.width = (absolute_box['xmax'] - absolute_box['xmin']) / img_width
         self.height = (absolute_box['ymax'] - absolute_box['ymin']) / img_height
+        self.colorname = absolute_box['colorname']
 
 # class used to create annotations in the format required by Azure computer vision system
 class NormAnnotationSet:
@@ -258,4 +260,20 @@ if __name__ == "__main__":
         # print("showing plot:")
         # plt.show()
 
+    # format annotations in the way required by
+    # Azure custom vision object detection
+    # https://docs.microsoft.com/en-us/azure/cognitive-services/custom-vision-service/quickstarts/object-detection?tabs=visual-studio&pivots=programming-language-python
+    tagged_images_with_regions = []
+    for annot in annotations:
+        regions = []
+        for box in annot.normed_boxes_list:
+            regions.append(Region(tag_id=box.colorname, left=box.left, top=box.top, width=box.width, height=box.height))
+    tagged_images_with_regions.append(ImageFileCreateEntry(name=os.path.basename(annot.path), contents=io.imread(annot.path), regions=regions))
+
+    upload_result = trainer.create_images_from_files(project.id, ImageFileCreateBatch(images=tagged_images_with_regions))
+    if not upload_result.is_batch_successful:
+    print("Image batch upload failed.")
+    for image in upload_result.images:
+        print("Image status: ", image.status)
+    exit(-1)
 
