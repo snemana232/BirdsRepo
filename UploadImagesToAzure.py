@@ -72,12 +72,24 @@ project = trainer.get_project("72ca79b9-9757-4d09-a6ab-0364dc6a9847")
 # Get tag for existing project
 # print(trainer.get_tags(project.id)[0].id)
 # fork_tag = trainer.get_tag(project.id, "6881e85b-0199-4aed-9890-39f02f1ef9a8")
-fork_tag = next(filter(lambda t: t.name == "fork", trainer.get_tags(project.id)), None)
+yellow_tag = next(filter(lambda t: t.name == "yellow", trainer.get_tags(project.id)), None)
+cyan_tag = next(filter(lambda t: t.name == "cyan", trainer.get_tags(project.id)), None)
+pink_tag = next(filter(lambda t: t.name == "pink", trainer.get_tags(project.id)), None)
+blue_tag = next(filter(lambda t: t.name == "blue", trainer.get_tags(project.id)), None)
+plum_violet_tag = next(filter(lambda t: t.name == "plum-violet", trainer.get_tags(project.id)), None)
 
-fork_image_regions = [NormAnnotationSet("fork_1", [100, 100], [{"xmax" : 50, "xmin": 1, "ymax": 50, "ymin": 1, "colorname": "fork"}]),
-                      NormAnnotationSet("fork_2", [100, 100], [{"xmax" : 50, "xmin": 1, "ymax": 50, "ymin": 1, "colorname": "fork"}]),
-                      NormAnnotationSet("fork_3", [100, 100], [{"xmax" : 50, "xmin": 1, "ymax": 50, "ymin": 1, "colorname": "fork"}]),
-                      NormAnnotationSet("fork_4", [100, 100], [{"xmax" : 50, "xmin": 1, "ymax": 50, "ymin": 1, "colorname": "fork"}])
+color_dic = {
+    'yellow': yellow_tag,
+    'cyan': cyan_tag,
+    'pink': pink_tag,
+    'blue': blue_tag,
+    'plum-violet': plum_violet_tag
+}
+
+fork_image_regions = [NormAnnotationSet("fork_1", [100, 100], [{"xmax" : 50, "xmin": 1, "ymax": 50, "ymin": 1, "colorname": "yellow"}]),
+                      NormAnnotationSet("fork_2", [100, 100], [{"xmax" : 50, "xmin": 1, "ymax": 50, "ymin": 1, "colorname": "cyan"}]),
+                      NormAnnotationSet("fork_3", [100, 100], [{"xmax" : 50, "xmin": 1, "ymax": 50, "ymin": 1, "colorname": "pink"}]),
+                      NormAnnotationSet("fork_4", [100, 100], [{"xmax" : 50, "xmin": 1, "ymax": 50, "ymin": 1, "colorname": "blue"}])
                       ]
 
 # base_image_location = os.path.join(os.getcwd(), "Images")
@@ -97,15 +109,11 @@ for annot in fork_image_regions:
     regions = []
     path = os.path.join(base_image_location, annot.path)
     for box in annot.normed_boxes_list:
-        if box.colorname == "fork":
-            tag_name = fork_tag.id
-        else:
-            tag_name = fork_tag.id
+        tag_name = color_dic[box.colorname]
         regions.append(Region(tag_id=tag_name, left=box.left, top=box.top, width=box.width, height=box.height))
     with open(os.path.join(base_image_location, path + ".jpg"), mode="rb") as image_contents:
         tagged_images_with_regions.append(
             ImageFileCreateEntry(name=os.path.basename(path[:-4]), contents=image_contents.read(), regions=regions))
-
 
 upload_result = trainer.create_images_from_files(project.id, ImageFileCreateBatch(images=tagged_images_with_regions))
 if not upload_result.is_batch_successful:
