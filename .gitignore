@@ -1,3 +1,7 @@
+# charlie's venv stuff
+bin/
+lib/
+pyenv.cfg
 
 # tf stuff
 birds-dataset/logs/*

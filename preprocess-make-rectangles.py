@@ -6,6 +6,11 @@ import os
 import glob
 import xml.etree.ElementTree as gfg
 
+from azure.cognitiveservices.vision.customvision.training import CustomVisionTrainingClient
+from azure.cognitiveservices.vision.customvision.prediction import CustomVisionPredictionClient
+from azure.cognitiveservices.vision.customvision.training.models import ImageFileCreateBatch, ImageFileCreateEntry, Region
+from msrest.authentication import ApiKeyCredentials
+
 '''
 For continuous-intensity images:
 https://answers.opencv.org/question/189428/connectedcomponents-like-function-for-grayscale-image/
