@@ -1,14 +1,10 @@
-# charlie's venv stuff
-bin/
-lib/
-pyvenv.cfg
-
 # tf stuff
 birds-dataset/logs/*
 birds-dataset/models/*
 
 # venv stuff
 birds-venv/*
+venv/
 
 yolov3.weights
 # Download weights here: https://pjreddie.com/media/files/yolov3.weights
