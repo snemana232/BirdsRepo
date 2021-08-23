@@ -110,7 +110,7 @@ for annot in fork_image_regions:
     path = os.path.join(base_image_location, annot.path)
     for box in annot.normed_boxes_list:
         tag_name = color_dic[box.colorname]
-        regions.append(Region(tag_id=tag_name, left=box.left, top=box.top, width=box.width, height=box.height))
+        regions.append(Region(tag_id=tag_name.id, left=box.left, top=box.top, width=box.width, height=box.height))
     with open(os.path.join(base_image_location, path + ".jpg"), mode="rb") as image_contents:
         tagged_images_with_regions.append(
             ImageFileCreateEntry(name=os.path.basename(path[:-4]), contents=image_contents.read(), regions=regions))
